@@ -23,7 +23,7 @@
 # inc = 1手ごとの加算[ms]
 # inc1p = 1p側のinc[ms]
 # inc2p = 2p側のinc[ms]
-# 
+#
 # 例 : --time "byoyomi 100" : 1手0.1秒
 # 例 : --time "time 900000" : 15分
 # 例 : --time "time1p 900000 time2p 900000 byoyomi 5000" : 15分 + 秒読み5秒
@@ -99,6 +99,20 @@ def AyaneruColosseum():
     # start_gameply
     parser.add_argument("--start_gameply", type=int, default=24, help="start game ply in the book")
 
+    # BookDir
+    parser.add_argument("--bookdir1", type=str, default="book", help="book directory for engine1")
+    parser.add_argument("--bookdir2", type=str, default="book", help="book directory for engine2")
+
+    # BookFile
+    parser.add_argument("--bookfile1", type=str, default="user_book1.db",
+            help="book file name for engine1")
+    parser.add_argument("--bookfile2", type=str, default="user_book2.db",
+            help="book file name for engine2")
+
+    # Arbitrary options
+    parser.add_argument("--option", "-o", type=str, default=None, nargs="+",
+            help="set arbitrary options as name:value for both engines")
+
     args = parser.parse_args()
 
     # --- コマンドラインのparseここまで ---
@@ -116,6 +130,11 @@ def AyaneruColosseum():
     print("flip_turn      : {0}".format(args.flip_turn))
     print("book file      : {0}".format(args.book_file))
     print("start_gameply  : {0}".format(args.start_gameply))
+    print("bookdir1       : {0}".format(args.bookdir1))
+    print("bookdir2       : {0}".format(args.bookdir2))
+    print("bookfile1      : {0}".format(args.bookfile1))
+    print("bookfile2      : {0}".format(args.bookfile2))
+    print("option         : {0}".format(args.option))
 
     # directory
 
@@ -124,6 +143,8 @@ def AyaneruColosseum():
     engine2 = os.path.join(home, args.engine2)
     eval1 = os.path.join(home, args.eval1)
     eval2 = os.path.join(home, args.eval2)
+    bookdir1 = os.path.join(home, args.bookdir1)
+    bookdir2 = os.path.join(home, args.bookdir2)
 
     # マルチあやねるサーバーをそのまま用いる
     server = ayane.MultiAyaneruServer()
@@ -148,10 +169,20 @@ def AyaneruColosseum():
         "NetworkDelay2": "0",
         "MaxMovesToDraw": "320",
         "MinimumThinkingTime": "0",
-        "BookFile": "no_book"
+        #"BookFile": "no_book"
     }
-    options1p = {"Hash": str(args.hash1), "Threads": str(args.thread1), "EvalDir": eval1}
-    options2p = {"Hash": str(args.hash2), "Threads": str(args.thread2), "EvalDir": eval2}
+
+    # command line options
+    argopt = {}
+    if args.option:
+        for item in args.option:
+            name, value = item.split(":")
+            argopt.update({name: value})
+
+    options1p = {"Hash": str(args.hash1), "Threads": str(args.thread1), "EvalDir": eval1,
+            "BookDir": bookdir1, "BookFile": args.bookfile1}
+    options2p = {"Hash": str(args.hash2), "Threads": str(args.thread2), "EvalDir": eval2,
+            "BookDir": bookdir2, "BookFile": args.bookfile2}
 
     # 1P,2P側のエンジンそれぞれを設定して初期化する。
     server.init_engine(0, engine1, {**options_common, **options1p})
