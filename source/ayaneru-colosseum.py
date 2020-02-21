@@ -242,6 +242,8 @@ def AyaneruColosseum(arglist):
 
     server.terminate()
 
+    return server.game_rating().win_rate
+
 
 if __name__ == "__main__":
     AyaneruColosseum(sys.argv[1:])
