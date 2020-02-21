@@ -55,9 +55,10 @@ import os
 import time
 import argparse
 import shogi.Ayane as ayane
+import sys
 
 
-def AyaneruColosseum():
+def AyaneruColosseum(arglist):
     # --- コマンドラインのparseここから ---
 
     parser = argparse.ArgumentParser("ayaneru-colosseum.py")
@@ -113,7 +114,7 @@ def AyaneruColosseum():
     parser.add_argument("--option", "-o", type=str, default=None, nargs="+",
             help="set arbitrary options as name:value for both engines")
 
-    args = parser.parse_args()
+    args = parser.parse_args(arglist)
 
     # --- コマンドラインのparseここまで ---
 
@@ -243,4 +244,4 @@ def AyaneruColosseum():
 
 
 if __name__ == "__main__":
-    AyaneruColosseum()
+    AyaneruColosseum(sys.argv[1:])
