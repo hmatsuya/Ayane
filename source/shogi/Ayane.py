@@ -23,7 +23,7 @@ from datetime import datetime
 class Log:
     # log_folder   : ログを書き出すフォルダ
     # file_logging : ファイルに書き出すのか？
-    # also_print   : 標準出力に出力するのか？ 
+    # also_print   : 標準出力に出力するのか？
     def __init__(self, log_folder: str, file_logging: bool = True, also_print: bool = True):
 
         # --- public members ---
@@ -1240,6 +1240,9 @@ class EloRating:
             # 先手番/後手番のときの勝率内訳
             self.win_rate_black = self.black_win / total
             self.win_rate_white = self.white_win / total
+            # ratingの差の信頼下限,信頼上限
+            self.rating_lowerbound = EloRating.__rating_lowerbound(self.win_rate, total)
+            self.rating_upperbound = EloRating.__rating_upperbound(self.win_rate, total)
         else:
             self.win_rate = 0
             self.win_rate_black = 0

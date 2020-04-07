@@ -105,37 +105,47 @@ def AyaneruColosseum(arglist):
     parser.add_argument("--bookdir2", type=str, default="book", help="book directory for engine2")
 
     # BookFile
-    parser.add_argument("--bookfile1", type=str, default="user_book1.db",
+    parser.add_argument("--bookfile1", type=str, default="no_book",
             help="book file name for engine1")
-    parser.add_argument("--bookfile2", type=str, default="user_book2.db",
+    parser.add_argument("--bookfile2", type=str, default="no_book",
             help="book file name for engine2")
 
     # Arbitrary options
-    parser.add_argument("--option", "-o", type=str, default=None, nargs="+",
+    parser.add_argument("--options", "-o", type=str, default=None,
             help="set arbitrary options as name:value for both engines")
+    parser.add_argument("--options1", "-o1", type=str, default=None,
+            help="set arbitrary options as name:value for the 1st engine")
+    parser.add_argument("--options2", "-o2", type=str, default=None,
+            help="set arbitrary options as name:value for the 2nd engine")
+
+    # Early stopping
+    parser.add_argument("--early_stopping", action="store_true")
 
     args = parser.parse_args(arglist)
 
     # --- コマンドラインのparseここまで ---
 
-    print("home           : {0}".format(args.home))
-    print("engine1        : {0}".format(args.engine1))
-    print("engine2        : {0}".format(args.engine2))
-    print("eval1          : {0}".format(args.eval1))
-    print("eval2          : {0}".format(args.eval2))
-    print("hash1          : {0}".format(args.hash1))
-    print("hash2          : {0}".format(args.hash2))
-    print("loop           : {0}".format(args.loop))
-    print("cores          : {0}".format(args.cores))
-    print("time           : {0}".format(args.time))
-    print("flip_turn      : {0}".format(args.flip_turn))
-    print("book file      : {0}".format(args.book_file))
-    print("start_gameply  : {0}".format(args.start_gameply))
-    print("bookdir1       : {0}".format(args.bookdir1))
-    print("bookdir2       : {0}".format(args.bookdir2))
-    print("bookfile1      : {0}".format(args.bookfile1))
-    print("bookfile2      : {0}".format(args.bookfile2))
-    print("option         : {0}".format(args.option))
+    print("home           : {0}".format(args.home), flush=True)
+    print("engine1        : {0}".format(args.engine1), flush=True)
+    print("engine2        : {0}".format(args.engine2), flush=True)
+    print("eval1          : {0}".format(args.eval1), flush=True)
+    print("eval2          : {0}".format(args.eval2), flush=True)
+    print("hash1          : {0}".format(args.hash1), flush=True)
+    print("hash2          : {0}".format(args.hash2), flush=True)
+    print("loop           : {0}".format(args.loop), flush=True)
+    print("cores          : {0}".format(args.cores), flush=True)
+    print("time           : {0}".format(args.time), flush=True)
+    print("flip_turn      : {0}".format(args.flip_turn), flush=True)
+    print("book file      : {0}".format(args.book_file), flush=True)
+    print("start_gameply  : {0}".format(args.start_gameply), flush=True)
+    print("bookdir1       : {0}".format(args.bookdir1), flush=True)
+    print("bookdir2       : {0}".format(args.bookdir2), flush=True)
+    print("bookfile1      : {0}".format(args.bookfile1), flush=True)
+    print("bookfile2      : {0}".format(args.bookfile2), flush=True)
+    print("options        : {0}".format(args.options), flush=True)
+    print("options1       : {0}".format(args.options1), flush=True)
+    print("options2       : {0}".format(args.options2), flush=True)
+    print("early_stopping : {0}".format(args.early_stopping), flush=True)
 
     # directory
 
@@ -174,11 +184,25 @@ def AyaneruColosseum(arglist):
     }
 
     # command line options
-    argopt = {}
-    if args.option:
-        for item in args.option:
-            name, value = item.split(":")
-            argopt.update({name: value})
+    def split_opt(arg):
+        argopt = {}
+        if arg:
+            for item in args.options.split(" "):
+                name, value = item.split(":")
+                argopt.update({name:value})
+        return argopt
+    #argopt = {}
+    #if args.options:
+    #    for item in args.options.split(" "):
+    #        name, value = item.split(":")
+    #        argopt.update({name: value})
+
+    argopt = split_opt(args.options)
+    argopt1 = split_opt(args.options1)
+    argopt2 = split_opt(args.options2)
+    print(f"argopt: {argopt}")
+    print(f"argopt1: {argopt1}")
+    print(f"argopt2: {argopt2}")
 
     options1p = {"Hash": str(args.hash1), "Threads": str(args.thread1), "EvalDir": eval1,
             "BookDir": bookdir1, "BookFile": args.bookfile1}
@@ -186,8 +210,8 @@ def AyaneruColosseum(arglist):
             "BookDir": bookdir2, "BookFile": args.bookfile2}
 
     # 1P,2P側のエンジンそれぞれを設定して初期化する。
-    server.init_engine(0, engine1, {**options_common, **options1p})
-    server.init_engine(1, engine2, {**options_common, **options2p})
+    server.init_engine(0, engine1, {**options_common, **options1p, **argopt, **argopt1})
+    server.init_engine(1, engine2, {**options_common, **options2p, **argopt, **argopt2})
 
     # 持ち時間設定。
     server.set_time_setting(args.time)
@@ -227,9 +251,15 @@ def AyaneruColosseum(arglist):
         nonlocal last_total_games, server
         if last_total_games != server.total_games:
             last_total_games = server.total_games
-            print(game_setting_str + "." + server.game_info())
+            print(game_setting_str + "." + server.game_info(), flush=True)
 
-    while server.total_games < loop:
+    def early_stopping():
+        nonlocal last_total_games, server, args, loop
+        if args.early_stopping and (server.total_games > (loop/10)) and (server.game_rating().rating_lowerbound > 0):
+            return True
+        return False
+
+    while server.total_games < loop and not early_stopping():
         output_info()
         time.sleep(1)
     output_info()
@@ -246,4 +276,5 @@ def AyaneruColosseum(arglist):
 
 
 if __name__ == "__main__":
+    print(__name__, flush=True)
     AyaneruColosseum(sys.argv[1:])
