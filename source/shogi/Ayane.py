@@ -532,9 +532,9 @@ class UsiEngine:
             cwd=os.path.dirname(self.engine_fullpath),
         )
 
-        self.stdin  = self.__proc.stdin
-        self.stdout = self.__proc.stdout
-        self.stderr = self.__proc.stderr
+        self.stdin  = self.proc.stdin
+        self.stdout = self.proc.stdout
+        self.stderr = self.proc.stderr
 
         # self.send_command("usi")
         # "usi"コマンドを先行して送っておく。
@@ -669,7 +669,7 @@ class UsiEngine:
 
     # プロセスが生きているかのチェック
     def poll(self):
-        return self.__proc.poll()
+        return self.proc.poll()
 
     # エンジンとのやりとりを行うスレッド(read方向)
     def read_worker(self):
@@ -1415,8 +1415,8 @@ class EloRating:
             self.win_rate_black = self.black_win / total
             self.win_rate_white = self.white_win / total
             # ratingの差の信頼下限,信頼上限
-            self.rating_lowerbound = EloRating.__rating_lowerbound(self.win_rate, total)
-            self.rating_upperbound = EloRating.__rating_upperbound(self.win_rate, total)
+            self.rating_lowerbound = EloRating.calc_rating_lowerbound(self.win_rate, total)
+            self.rating_upperbound = EloRating.calc_rating_upperbound(self.win_rate, total)
         else:
             self.win_rate = 0
             self.win_rate_black = 0
