@@ -8,7 +8,8 @@ from queue import Queue
 from enum import Enum
 from enum import IntEnum
 from datetime import datetime
-
+import paramiko
+from paramiko.client import SSHClient
 
 # unit_test1.pyのほうのコードを見ると最低限の使い方は理解できるはずです。(それがサンプルを兼ねているので)
 
@@ -424,8 +425,8 @@ class UsiEngine:
         self.__proc = None
 
         # エンジンとやりとりするスレッド
-        self.__read_thread = None
-        self.__write_thread = None
+        self.read_thread = None
+        self.write_thread = None
 
         # エンジンに設定するオプション項目。(dictで)
         # 例 : {"Hash":"128","Threads":"8"}
@@ -435,7 +436,7 @@ class UsiEngine:
         self.__last_received_line = None
 
         # エンジンにコマンドを送信するためのqueue(送信スレッドとのやりとりに用いる)
-        self.__send_queue = Queue()
+        self.send_queue = Queue()
 
         # print()を呼び出すときのlock object
         self.__lock_object = threading.Lock()
@@ -471,25 +472,25 @@ class UsiEngine:
         self.disconnect()
 
         # engine_stateは、disconnect()でUsiEngineState.DisconnectedになってしまうのでいったんNoneに設定してリセット。
-        # 以降は、この変数は、__change_state()を呼び出して変更すること。
+        # 以降は、この変数は、change_state()を呼び出して変更すること。
         self.engine_state = None
         self.exit_state = None
         self.engine_path = engine_path
 
         # write workerに対するコマンドqueue
-        self.__send_queue = Queue()
+        self.send_queue = Queue()
 
         # 最後にエンジン側から受信した行
         self.last_received_line = None
 
         # 実行ファイルの存在するフォルダ
         self.engine_fullpath = os.path.join(os.getcwd(), self.engine_path)
-        self.__change_state(UsiEngineState.WaitConnecting)
+        self.change_state(UsiEngineState.WaitConnecting)
 
         # subprocess.Popen()では接続失敗を確認する手段がないくさいので、
         # 事前に実行ファイルが存在するかを調べる。
         if not os.path.exists(self.engine_fullpath):
-            self.__change_state(UsiEngineState.Disconnected)
+            self.change_state(UsiEngineState.Disconnected)
             self.exit_state = "Connection Error"
             raise FileNotFoundError(self.engine_fullpath + " not found.")
 
@@ -498,18 +499,22 @@ class UsiEngine:
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE,
             encoding='utf-8', cwd=os.path.dirname(self.engine_fullpath))
 
+        self.stdin  = self.__proc.stdin
+        self.stdout = self.__proc.stdout
+        self.stderr = self.__proc.stderr
+
         # self.send_command("usi")
         # "usi"コマンドを先行して送っておく。
         # →　オプション項目が知りたいわけでなければエンジンに対して"usi"、送る必要なかったりする。
         # また、オプション自体は、"engine_options.txt"で設定されるものとする。
 
-        self.__change_state(UsiEngineState.Connected)
+        self.change_state(UsiEngineState.Connected)
 
         # 読み書きスレッド
-        self.__read_thread = threading.Thread(target=self.__read_worker)
-        self.__read_thread.start()
-        self.__write_thread = threading.Thread(target=self.__write_worker)
-        self.__write_thread.start()
+        self.read_thread = threading.Thread(target=self.read_worker)
+        self.read_thread.start()
+        self.write_thread = threading.Thread(target=self.write_worker)
+        self.write_thread.start()
 
     # エンジンのconnect()が呼び出されたあとであるか
     def is_connected(self) -> bool:
@@ -517,7 +522,7 @@ class UsiEngine:
 
     # エンジン用のプロセスにコマンドを送信する(プロセスの標準入力にメッセージを送る)
     def send_command(self, message: str):
-        self.__send_queue.put(message)
+        self.send_queue.put(message)
 
     # エンジン用のプロセスを終了する
     def disconnect(self):
@@ -527,24 +532,24 @@ class UsiEngine:
             # エンジンが行儀よく動作することを期待するしかない。
             # "quit"メッセージを送信して、エンジン側に終了してもらうしかない。
 
-        if self.__read_thread is not None:
-            self.__read_thread.join()
-            self.__read_thread = None
+        if self.read_thread is not None:
+            self.read_thread.join()
+            self.read_thread = None
 
-        if self.__write_thread is not None:
-            self.__write_thread.join()
-            self.__write_thread = None
+        if self.write_thread is not None:
+            self.write_thread.join()
+            self.write_thread = None
 
         # GCが呼び出されたときに回収されるはずだが、UnitTestでresource leakの警告が出るのが許せないので
         # この時点でclose()を呼び出しておく。
         if self.__proc is not None:
-            self.__proc.stdin.close()
-            self.__proc.stdout.close()
-            self.__proc.stderr.close()
+            self.stdin.close()
+            self.stdout.close()
+            self.stderr.close()
             self.__proc.terminate()
 
         self.__proc = None
-        self.__change_state(UsiEngineState.Disconnected)
+        self.change_state(UsiEngineState.Disconnected)
 
     # 指定したUsiEngineStateになるのを待つ
     # disconnectedになってしまったら例外をraise
@@ -627,34 +632,38 @@ class UsiEngine:
             self.__state_changed_cv.wait_for(lambda: self.__last_received_line is not None)
             return self.__last_received_line
 
+    # プロセスが生きているかのチェック
+    def poll(self):
+        return self.__proc.poll()
+
     # エンジンとのやりとりを行うスレッド(read方向)
-    def __read_worker(self):
+    def read_worker(self):
         while True:
-            line = self.__proc.stdout.readline()
+            line = self.stdout.readline()
             # プロセスが終了した場合、line = Noneのままreadline()を抜ける。
             if line:
                 self.__dispatch_message(line.strip())
 
             # プロセスが生きているかのチェック
-            retcode = self.__proc.poll()
+            retcode = self.poll()
             if not line and retcode is not None:
                 self.exit_state = 0
                 # エラー以外の何らかの理由による終了
                 break
 
     # エンジンとやりとりを行うスレッド(write方向)
-    def __write_worker(self):
+    def write_worker(self):
 
         if self.__options is not None:
             for k, v in self.__options.items():
                 self.send_command("setoption name {0} value {1}".format(k, v))
 
         self.send_command("isready")  # 先行して"isready"を送信
-        self.__change_state(UsiEngineState.WaitReadyOk)
+        self.change_state(UsiEngineState.WaitReadyOk)
 
         try:
             while True:
-                message = self.__send_queue.get()
+                message = self.send_queue.get()
 
                 # 先頭の文字列で判別する。
                 messages = message.split()
@@ -669,27 +678,27 @@ class UsiEngine:
                         continue
                 elif token == "go":
                     self.wait_for_state(UsiEngineState.WaitCommand)
-                    self.__change_state(UsiEngineState.WaitBestmove)
+                    self.change_state(UsiEngineState.WaitBestmove)
                 # positionコマンドは、WaitCommand状態でないと送信できない。
                 elif token == "position":
                     self.wait_for_state(UsiEngineState.WaitCommand)
                 elif token == "moves" or token == "side":
                     self.wait_for_state(UsiEngineState.WaitCommand)
-                    self.__change_state(UsiEngineState.WaitOneLine)
+                    self.change_state(UsiEngineState.WaitOneLine)
                 elif token == "usinewgame" or token == "gameover":
                     self.wait_for_state(UsiEngineState.WaitCommand)
 
-                self.__proc.stdin.write(message + '\n')
-                self.__proc.stdin.flush()
+                self.stdin.write(message + '\n')
+                self.stdin.flush()
                 if self.debug_print:
                     self.__print("[{0}:<] {1}".format(self.__instance_id, message))
 
                 if token == "quit":
-                    self.__change_state(UsiEngineState.Disconnected)
+                    self.change_state(UsiEngineState.Disconnected)
                     # 終了コマンドを送信したなら自発的にこのスレッドを終了させる。
                     break
 
-                retcode = self.__proc.poll()
+                retcode = self.poll()
                 if retcode is not None:
                     break
 
@@ -706,7 +715,7 @@ class UsiEngine:
             # などとすればファイルに書き出せる。
 
     # self.engine_stateを変更する。
-    def __change_state(self, state: UsiEngineState):
+    def change_state(self, state: UsiEngineState):
         # 切断されたあとでは変更できない
         if self.engine_state == UsiEngineState.Disconnected:
             return
@@ -740,15 +749,15 @@ class UsiEngine:
 
         # 1行待ちであったなら、これでハンドルしたことにして返る。
         if self.engine_state == UsiEngineState.WaitOneLine:
-            self.__change_state(UsiEngineState.WaitCommand)
+            self.change_state(UsiEngineState.WaitCommand)
             return
         # "isready"に対する応答
         elif token == "readyok":
-            self.__change_state(UsiEngineState.WaitCommand)
+            self.change_state(UsiEngineState.WaitCommand)
         # "go"に対する応答
         elif token == "bestmove":
             self.__handle_bestmove(message)
-            self.__change_state(UsiEngineState.WaitCommand)
+            self.change_state(UsiEngineState.WaitCommand)
         # エンジンの読み筋に対する応答
         elif token == "info":
             self.__handle_info(message)
@@ -849,6 +858,112 @@ class UsiEngine:
     # デストラクタで通信の切断を行う。
     def __del__(self):
         self.disconnect()
+
+
+# SSH経由でUSIプロトコルを用いて思考エンジンとやりとりするためのwrapperクラス
+class SshUsiEngine(UsiEngine):
+    def __init__(self):
+        super().__init__()
+
+        self.ssh_client = None
+
+        # Remote engine return code
+        self.remote_engine_retcode = None
+
+    # Watch remote engine exit status
+    def remote_engine_watcher(self):
+        self.remote_engine_retcode = None
+        self.remote_engine_retcode = self.stdout.channel.recv_exit_status()
+
+    # エンジンに接続する
+    # enginePath : エンジンPathを指定する。
+    # エンジンが存在しないときは例外がでる。
+    def connect(self, host: str, engine_path: str):
+        self.disconnect()
+
+        # engine_stateは、disconnect()でUsiEngineState.DisconnectedになってしまうのでいったんNoneに設定してリセット。
+        # 以降は、この変数は、change_state()を呼び出して変更すること。
+        self.engine_state = None
+        self.exit_state = None
+        self.engine_path = engine_path
+
+        # write workerに対するコマンドqueue
+        self.send_queue = Queue()
+
+        # 最後にエンジン側から受信した行
+        self.last_received_line = None
+
+        # 実行ファイルの存在するフォルダ
+        self.host = host
+        self.engine_fullpath = self.engine_path
+        self.change_state(UsiEngineState.WaitConnecting)
+
+        # SSH Connection
+        self.ssh_client = SSHClient()
+        self.ssh_client.set_missing_host_key_policy(paramiko.client.WarningPolicy)
+        #self.ssh_client.load_system_host_keys()
+        keys = self.ssh_client.get_host_keys()
+        keys.clear()
+        self.ssh_client.connect(host)
+        dirname = os.path.dirname(engine_path)
+        command = f'cd {dirname} && {engine_path} && exit'
+        self.stdin, self.stdout, self.stderr = \
+                self.ssh_client.exec_command(command, bufsize=0)
+
+        self.remote_engine_watcher_thread = threading.Thread(target=self.remote_engine_watcher)
+        self.remote_engine_watcher_thread.start()
+
+        # self.send_command("usi")
+        # "usi"コマンドを先行して送っておく。
+        # →　オプション項目が知りたいわけでなければエンジンに対して"usi"、送る必要なかったりする。
+        # また、オプション自体は、"engine_options.txt"で設定されるものとする。
+
+        self.change_state(UsiEngineState.Connected)
+
+        # 読み書きスレッド
+        self.read_thread = threading.Thread(target=self.read_worker)
+        self.read_thread.start()
+        self.write_thread = threading.Thread(target=self.write_worker)
+        self.write_thread.start()
+
+    # エンジンのconnect()が呼び出されたあとであるか
+    def is_connected(self) -> bool:
+        if self.ssh_client is not None and self.ssh_client.get_transport() is not None:
+            return self.ssh_client.get_transport().is_active()
+        return False
+
+    def poll(self):
+        return self.remote_engine_retcode
+
+    # エンジン用のプロセスを終了する
+    def disconnect(self):
+        if self.is_connected():
+            self.send_command("quit")
+            # スレッドをkillするのはpythonでは難しい。
+            # エンジンが行儀よく動作することを期待するしかない。
+            # "quit"メッセージを送信して、エンジン側に終了してもらうしかない。
+
+        if self.read_thread is not None:
+            self.read_thread.join()
+            self.read_thread = None
+
+        if self.write_thread is not None:
+            self.write_thread.join()
+            self.write_thread = None
+
+        # GCが呼び出されたときに回収されるはずだが、UnitTestでresource leakの警告が出るのが許せないので
+
+        if self.ssh_client is not None:
+            self.ssh_client.close()
+
+        if self.is_connected():
+            self.stdin.close()
+            self.stdout.close()
+            self.stderr.close()
+
+        self.ssh_client = None
+        self.change_state(UsiEngineState.Disconnected)
+
 
 
 # ゲームの終局状態を示す

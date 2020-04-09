@@ -4,7 +4,10 @@ import time
 
 
 class TestAyane(unittest.TestCase):
-    
+
+    # engine_path = "exe/yaneuraOu.exe" # dafault value
+    engine_path = "/home/hmatsuya/workspace/Shogi/test/yane1/exe/YaneuraOu-by-gcc"
+
     # 通常探索用の思考エンジンの接続テスト
     # 同期的に思考させる。
     def test_ayane1(self):
@@ -27,8 +30,36 @@ class TestAyane(unittest.TestCase):
 
         # エンジンに接続
         # 通常の思考エンジンであるものとする。
-        usi.connect("exe/YaneuraOu.exe")
+        usi.connect(self.__class__.engine_path)
 
+        self.do_test_ayane1(usi)
+
+    # test_ayane1 via SSH connection
+    def test_ayane1_ssh(self):
+        print("test_ayane1_ssh : ")
+
+        # エンジンとやりとりするクラス
+        usi = ayane.SshUsiEngine()
+
+        # デバッグ用にエンジンとのやりとり内容を標準出力に出力する。
+        # usi.debug_print = True
+
+        # エンジンオプション自体は、基本的には"engine_options.txt"で設定する。(やねうら王のdocs/を読むべし)
+        # 特定のエンジンオプションをさらに上書きで設定できる
+        usi.set_engine_options({
+            "Hash": "128",
+            "Threads": "4",
+            "NetworkDelay": "0",
+            "NetworkDelay2": "0"
+        })
+
+        # エンジンに接続
+        # 通常の思考エンジンであるものとする。
+        usi.connect('localhost', self.__class__.engine_path)
+
+        self.do_test_ayane1(usi)
+
+    def do_test_ayane1(self, usi):
         # 開始局面から76歩の局面
         # ※　"position"コマンド、"go"コマンドなどについては、USIプロトコルの説明を参考にしてください。
         # cf.「USIプロトコルとは」: http://shogidokoro.starfree.jp/usi.html
@@ -66,7 +97,36 @@ class TestAyane(unittest.TestCase):
             "NetworkDelay": "0",
             "NetworkDelay2": "0"
         })
-        usi.connect("exe/YaneuraOu.exe")
+        usi.connect(self.__class__.engine_path)
+        self.do_test_ayane2(usi)
+
+    # test_ayane2 via SSH connection
+    def test_ayane2_ssh(self):
+        print("test_ayane2_ssh : ")
+
+        # エンジンとやりとりするクラス
+        usi = ayane.SshUsiEngine()
+
+        # デバッグ用にエンジンとのやりとり内容を標準出力に出力する。
+        # usi.debug_print = True
+
+        # エンジンオプション自体は、基本的には"engine_options.txt"で設定する。(やねうら王のdocs/を読むべし)
+        # 特定のエンジンオプションをさらに上書きで設定できる
+        usi.set_engine_options({
+            "Hash": "128",
+            "Threads": "4",
+            "NetworkDelay": "0",
+            "NetworkDelay2": "0"
+        })
+
+        # エンジンに接続
+        # 通常の思考エンジンであるものとする。
+        usi.connect('localhost', self.__class__.engine_path)
+
+        self.do_test_ayane2(usi)
+
+
+    def do_test_ayane2(self, usi):
 
         # usi.send_position("startpos moves 7g7f")
         # →　局面を指定しなければ初期局面のはず。
@@ -104,7 +164,7 @@ class TestAyane(unittest.TestCase):
             "NetworkDelay": "0",
             "NetworkDelay2": "0"
         })
-        usi.connect("exe/YaneuraOu.exe")
+        usi.connect(self.__class__.engine_path)
 
         for sfen in sfens:
             usi.usi_position(sfen)
@@ -141,7 +201,7 @@ class TestAyane(unittest.TestCase):
                 "MaxMovesToDraw": "256",
                 "MinimumThinkingTime": "0"
             })
-            usi.connect("exe/YaneuraOu.exe")
+            usi.connect(self.__class__.engine_path)
             usis.append(usi)
 
         # 棋譜
@@ -184,7 +244,7 @@ class TestAyane(unittest.TestCase):
         for usi in usis:
             usi.disconnect()
 
-    # あやねるサーバーを使った対局例    
+    # あやねるサーバーを使った対局例
     def test_ayane5(self):
         print("test_ayane5 : ")
 
@@ -199,7 +259,7 @@ class TestAyane(unittest.TestCase):
                 "MinimumThinkingTime": "0"
             })
             # engine.debug_print = True
-            engine.connect("exe/YaneuraOu.exe")
+            engine.connect(self.__class__.engine_path)
 
         # 持ち時間設定。
         server.set_time_setting("byoyomi 100")                 # 1手0.1秒
@@ -218,7 +278,7 @@ class TestAyane(unittest.TestCase):
 
         server.terminate()
 
-    # マルチあやねるサーバーを使った対局例    
+    # マルチあやねるサーバーを使った対局例
     def test_ayane6(self):
         print("test_ayane6 : ")
 
@@ -238,8 +298,8 @@ class TestAyane(unittest.TestCase):
         }
 
         # 1P,2P側のエンジンそれぞれを設定して初期化する。
-        server.init_engine(0, "exe/YaneuraOu.exe", options)
-        server.init_engine(1, "exe/YaneuraOu.exe", options)
+        server.init_engine(0, self.__class__.engine_path, options)
+        server.init_engine(1, self.__class__.engine_path, options)
 
         # 持ち時間設定。
         # server.set_time_setting("byoyomi 100")                 # 1手0.1秒
