@@ -478,6 +478,8 @@ class UsiEngine:
             self.instance_id = UsiEngine.static_count
             UsiEngine.static_count += 1
 
+        self.receive_queue = Queue()
+
     # --- private static members ---
 
     # 静的メンバ変数とする。UsiEngineのインスタンスの数を記録する
@@ -507,6 +509,7 @@ class UsiEngine:
 
         # write workerに対するコマンドqueue
         self.send_queue = Queue()
+        self.receive_queue = Queue()
 
         # 最後にエンジン側から受信した行
         self.last_received_line = None
@@ -774,6 +777,7 @@ class UsiEngine:
 
         # 最後に受信した文字列はここに積む約束になっている。
         self.last_received_line = message
+        self.receive_queue.put(message)
 
         # 先頭の文字列で判別する。
         index = message.find(" ")
