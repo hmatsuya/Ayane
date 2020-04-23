@@ -28,7 +28,7 @@ python3 ayaneru-colosseum.py \
 	--eval2 eval2 \
     --flip_turn True \
     --start_gameply 1 \
-    --options "BookMoves:256 BookEvalDiff:60 BookEvalBlackLimit:0 BookEvalWhiteLimit:-120 ResignValue:1800 BookDepthLimit:2 ConsiderBookMoveCount:true"
+    --options "BookMoves:256 BookEvalDiff:30 BookEvalBlackLimit:0 BookEvalWhiteLimit:-120 ResignValue:1800 BookDepthLimit:0 ConsiderBookMoveCount:true"
     #--options "NarrowBook:true ResignValue:3000 BookDepthLimit:0"
     #--option BookMoves:256 BookEvalBlackLimit:0 BookEvalWhiteLimit:-150 BookEvalDiff:300
 
