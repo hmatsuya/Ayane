@@ -83,11 +83,14 @@ def AyaneruColosseum(arglist):
     )
 
     # Hashサイズ。デフォルト64MB
-    parser.add_argument("--hash1", type=int, default=128, help="engine1 hashsize[MB]")
-    parser.add_argument("--hash2", type=int, default=128, help="engine2 hashsize[MB]")
+    parser.add_argument("--hash1", type=int, default=128,
+                        help="engine1 hashsize[MB]")
+    parser.add_argument("--hash2", type=int, default=128,
+                        help="engine2 hashsize[MB]")
 
     # 対局回数
-    parser.add_argument("--loop", type=int, default=100, help="number of games")
+    parser.add_argument("--loop", type=int, default=100,
+                        help="number of games")
 
     # CPUコア数
     parser.add_argument(
@@ -103,8 +106,10 @@ def AyaneruColosseum(arglist):
     )
 
     # engine folder
-    parser.add_argument("--eval1", type=str, default="eval", help="engine1 eval")
-    parser.add_argument("--eval2", type=str, default="eval", help="engine2 eval2")
+    parser.add_argument("--eval1", type=str,
+                        default="eval", help="engine1 eval")
+    parser.add_argument("--eval2", type=str,
+                        default="eval", help="engine2 eval2")
 
     # flip_turn
     parser.add_argument(
@@ -112,7 +117,8 @@ def AyaneruColosseum(arglist):
     )
 
     # book_file
-    parser.add_argument("--book_file", type=str, default=None, help="book filepath")
+    parser.add_argument("--book_file", type=str,
+                        default=None, help="book filepath")
 
     # start_gameply
     parser.add_argument(
@@ -120,25 +126,29 @@ def AyaneruColosseum(arglist):
     )
 
     # BookDir
-    parser.add_argument("--bookdir1", type=str, default="book", help="book directory for engine1")
-    parser.add_argument("--bookdir2", type=str, default="book", help="book directory for engine2")
+    parser.add_argument("--bookdir1", type=str, default="book",
+                        help="book directory for engine1")
+    parser.add_argument("--bookdir2", type=str, default="book",
+                        help="book directory for engine2")
 
     # BookFile
-    parser.add_argument("--bookfile1", type=str, default="no_book",
-            help="book file name for engine1")
-    parser.add_argument("--bookfile2", type=str, default="no_book",
-            help="book file name for engine2")
+    parser.add_argument("--bookfile1", type=str,
+                        default="no_book", help="book file name for engine1")
+    parser.add_argument("--bookfile2", type=str,
+                        default="no_book", help="book file name for engine2")
 
     # Arbitrary options
     parser.add_argument("--options", "-o", type=str, default=None,
-            help="set arbitrary options as name:value for both engines")
+                        help="set arbitrary options as name:value for both engines")
     parser.add_argument("--options1", "-o1", type=str, default=None,
-            help="set arbitrary options as name:value for the 1st engine")
+                        help="set arbitrary options as name:value for the 1st engine")
     parser.add_argument("--options2", "-o2", type=str, default=None,
-            help="set arbitrary options as name:value for the 2nd engine")
+                        help="set arbitrary options as name:value for the 2nd engine")
 
     # Early stopping
     parser.add_argument("--early_stopping", action="store_true")
+    parser.add_argument("--early_stopping_limit", type=int, default=0,
+                        help="stop when the lower limit get below the rating limit")
 
     args = parser.parse_args(arglist)
 
@@ -165,6 +175,8 @@ def AyaneruColosseum(arglist):
     print("options1       : {0}".format(args.options1), flush=True)
     print("options2       : {0}".format(args.options2), flush=True)
     print("early_stopping : {0}".format(args.early_stopping), flush=True)
+    print("early_stopping_limit : {0}".format(
+        args.early_stopping_limit), flush=True)
 
     # directory
 
@@ -199,7 +211,7 @@ def AyaneruColosseum(arglist):
         "NetworkDelay2": "0",
         "MaxMovesToDraw": "320",
         "MinimumThinkingTime": "0",
-        #"BookFile": "no_book"
+        # "BookFile": "no_book"
     }
 
     # command line options
@@ -208,10 +220,10 @@ def AyaneruColosseum(arglist):
         if arg:
             for item in args.options.split(" "):
                 name, value = item.split(":")
-                argopt.update({name:value})
+                argopt.update({name: value})
         return argopt
     #argopt = {}
-    #if args.options:
+    # if args.options:
     #    for item in args.options.split(" "):
     #        name, value = item.split(":")
     #        argopt.update({name: value})
@@ -223,14 +235,16 @@ def AyaneruColosseum(arglist):
     print(f"argopt1: {argopt1}")
     print(f"argopt2: {argopt2}")
 
-    options1p = {"Hash": str(args.hash1), "Threads": str(args.thread1), "EvalDir": eval1,
-            "BookDir": bookdir1, "BookFile": args.bookfile1}
-    options2p = {"Hash": str(args.hash2), "Threads": str(args.thread2), "EvalDir": eval2,
-            "BookDir": bookdir2, "BookFile": args.bookfile2}
+    options1p = {"USI_Hash": str(args.hash1), "Threads": str(args.thread1), "EvalDir": eval1,
+                 "BookDir": bookdir1, "BookFile": args.bookfile1}
+    options2p = {"USI_Hash": str(args.hash2), "Threads": str(args.thread2), "EvalDir": eval2,
+                 "BookDir": bookdir2, "BookFile": args.bookfile2}
 
     # 1P,2P側のエンジンそれぞれを設定して初期化する。
-    server.init_engine(0, engine1, {**options_common, **options1p, **argopt, **argopt1})
-    server.init_engine(1, engine2, {**options_common, **options2p, **argopt, **argopt2})
+    server.init_engine(
+        0, engine1, {**options_common, **options1p, **argopt, **argopt1})
+    server.init_engine(
+        1, engine2, {**options_common, **options2p, **argopt, **argopt2})
 
     # 持ち時間設定。
     server.set_time_setting(args.time)
@@ -279,7 +293,7 @@ def AyaneruColosseum(arglist):
 
     def early_stopping():
         nonlocal last_total_games, server, args, loop
-        if args.early_stopping and (server.total_games > (loop/10)) and (server.game_rating().rating_lowerbound > 0):
+        if args.early_stopping and (server.total_games > (loop/10)) and (-server.game_rating().rating_lowerbound < args.early_stopping_limit):
             return True
         return False
 
