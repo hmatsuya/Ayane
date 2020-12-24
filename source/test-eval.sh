@@ -1,7 +1,7 @@
-#!/bin/bash
+#!/bin/bash -e
 
 HOME=/home/hmatsuya/workspace/Shogi/test/yane1/exe
-HOME=/home/hmatsuya/workspace/Shogi/cobra2019b/exe
+#HOME=/home/hmatsuya/workspace/Shogi/cobra2019b/exe
 echo HOME: $HOME
 
 if [ $# -eq 0 ] ; then
@@ -28,10 +28,10 @@ echo EVAL2: $EVAL2
 #ln -s $EVAL2 $HOME/evallink2
 
 python3 ayaneru-colosseum.py \
-	--time "byoyomi 130" \
+	--time "byoyomi 2000" \
     --home $HOME \
-	--engine1 YaneuraOu-by-gcc.default_arch \
-	--engine2 YaneuraOu-by-gcc.default_arch \
+	--engine1 YaneuraOu-by-gcc \
+	--engine2 YaneuraOu-by-gcc \
     --bookdir1 book \
     --bookdir2 book \
     --bookfile1 no_book \
@@ -42,11 +42,13 @@ python3 ayaneru-colosseum.py \
 	--cores 6 \
 	--thread1 1 \
 	--thread2 1 \
-	--eval1 ../../Kristallweizen/eval \
-	--eval2 merged5 \
     --flip_turn True \
     --book_file book/records_2017-05-19.sfen \
-    --start_gameply 24
+    --start_gameply 24 \
+    --eval1 $EVAL1 \
+    --eval2 $EVAL2
+	# --eval1 ../../Kristallweizen/eval \
+	# --eval2 merged5 \
     #--start_gameply 0 \
     #--option BookMoves:128 ConsiderBookMoveCount:false
 

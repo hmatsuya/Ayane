@@ -1,7 +1,8 @@
 #!/home/hmatsuya/anaconda/envs/py3/bin/python3
 import sys
 import optuna
-import shlex, subprocess
+import shlex
+import subprocess
 from datetime import datetime
 import os
 import argparse
@@ -13,14 +14,19 @@ exec(open('/home/hmatsuya/workspace/Shogi/Ayane/source/ayaneru-colosseum.py').re
 study = optuna.create_study()
 #study = pickle.load(open("optuna_study.pkl", "rb"))
 
+
 def run(command_line):
     args = shlex.split(command_line)
     print(f"{datetime.now()}: {command_line}", flush=True)
     #subprocess.run(args, cwd="/home/hmatsuya/workspace/Shogi/cobra2019b/exe")
-    subprocess.run(args, shell=False, cwd="/home/hmatsuya/workspace/Shogi/cobra2019b/exe")
+    subprocess.run(args, shell=False,
+                   cwd="/home/hmatsuya/workspace/Shogi/cobra2019b/exe")
     print(f"{datetime.now()}: Done.", flush=True)
 
+
 def objective(trial):
+    exec(open('/home/hmatsuya/workspace/Shogi/Ayane/source/ayaneru-colosseum.py').read())
+
     percentage1 = trial.suggest_int('percentage1', 0, 100)
     percentage2 = trial.suggest_int('percentage2', 0, 100)
     percentage3 = trial.suggest_int('percentage3', 0, 100)
@@ -28,10 +34,11 @@ def objective(trial):
     # merge
     print(f"{datetime.now()}: start training.", flush=True)
     command_line = f"./YaneuraOu-by-gcc.evalmerge.bak test nnue evalmerge eval /home/hmatsuya/workspace/Shogi/tanuki-2019/eval merged1 {percentage1} , quit"
+    command_line = f"./YaneuraOu-by-gcc.evalmerge.bak test nnue evalmerge merged5 /home/hmatsuya/workspace/Shogi/suisho2_200504/eval merged1 {percentage1} , quit"
     run(command_line)
 
     # Kristallweizen
-    command_line = f"./YaneuraOu-by-gcc.evalmerge.bak test nnue evalmerge /home/hmatsuya/workspace/Shogi/Kristallweizen/eval /home/hmatsuya/workspace/Shogi/Kristallweizen/kai04/eval merged2 {percentage2} , quit"
+    command_line = f"./YaneuraOu-by-gcc.evalmerge.bak test nnue evalmerge /home/hmatsuya/workspace/Shogi/Kristallweizen/eval /home/hmatsuya/workspace/Shogi/elmo2020/eval merged2 {percentage2} , quit"
     run(command_line)
 
     # last merge
@@ -44,7 +51,7 @@ def objective(trial):
     # test
     print(f"{datetime.now()}: start testing.", flush=True)
     winrate1 = AyaneruColosseum([
-        "--time", "byoyomi 130",
+        "--time", "byoyomi 2000",
         "--home", "/home/hmatsuya/workspace/Shogi/cobra2019b/exe",
         "--engine1", "YaneuraOu-by-gcc.default_arch",
         "--engine2", f"YaneuraOu-by-gcc.default_arch",
@@ -56,15 +63,18 @@ def objective(trial):
         "--bookfile2", "no_book",
         "--hash1", "512",
         "--hash2", "512",
-        "--eval1", "Kristall",
+        "--eval1", "../../suisho2_200504/eval",
         "--eval2", f"merged3",
         "--flip_turn", "True",
         "--book_file", "book/records_2017-05-19.sfen",
         "--start_gameply", "24",
         "--early_stopping",
-        ])
+        "--early_stopping_limit", "50",
+    ])
 
+    pickle.dump(study, open("optuna_study.pkl", "wb"))
     return winrate1
+
 
 study.optimize(objective, n_trials=50)
 
